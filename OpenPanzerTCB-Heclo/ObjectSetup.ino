@@ -11,6 +11,8 @@ void InstantiateMotorObjects()
     RCOutput4_Available = true;    
     MotorA_Available = true;
     MotorB_Available = true;
+    MotorC_Available = true;
+    MotorD_Available = true;
     uint8_t SteeringServoNum = 255; // Initialize to value that means nothing
 
    
@@ -77,6 +79,24 @@ void InstantiateMotorObjects()
                     MotorB_Available = false;       // This becomes unavailable for general purpose controller
                 }
                 // else - if car, we leave MotorB available as a general purpose controller. 
+                break;
+                
+            case ONBOARD_CD:
+                // For a single rear drive motor (or a single propulsion motor), connect it to  MOTOR C
+                DriveMotor = new Onboard_ESC_CD (SIDEA,MOTOR_MAX_REVSPEED,MOTOR_MAX_FWDSPEED,0);
+                DriveMotor->begin();                
+                MotorC_Available = false;
+
+                if (eeprom.ramcopy.DriveType == DT_DKLM)
+                {
+                    // For ancient Tamiya gearboxes, the DKLM "Propulsion Dynamic" gearboxes, and any others that use a single motor for drive and a secondary motor to shift power from one tread to the other, 
+                    // we have a "SteeringMotor" which will be MOTOR D. Technically one should not be using this option for those gearboxes because they will exceed the current draw limits of the 
+                    // onboard driver, but perhaps some day this same code will be used on different hardware. 
+                    SteeringMotor = new Onboard_ESC_CD (SIDEB,MOTOR_MAX_REVSPEED,MOTOR_MAX_FWDSPEED,0);
+                    SteeringMotor->begin();
+                    MotorD_Available = false;       // This becomes unavailable for general purpose controller
+                }
+                // else - if car, we leave MotorD available as a general purpose controller. 
                 break;
                 
             case SERVO_ESC:
@@ -155,6 +175,14 @@ void InstantiateMotorObjects()
                 RightTread = new Onboard_ESC (SIDEB,MOTOR_MAX_REVSPEED,MOTOR_MAX_FWDSPEED,0);
                 MotorA_Available = false;
                 MotorB_Available = false;
+                break;
+
+            case ONBOARD_CD:
+                // Left drive to Motor C, Right drive to Motor D
+                LeftTread = new Onboard_ESC_CD (SIDEA,MOTOR_MAX_REVSPEED,MOTOR_MAX_FWDSPEED,0);
+                RightTread = new Onboard_ESC_CD (SIDEB,MOTOR_MAX_REVSPEED,MOTOR_MAX_FWDSPEED,0);
+                MotorC_Available = false;
+                MotorD_Available = false;
                 break;
                 
             case SERVO_ESC:
@@ -430,6 +458,9 @@ void InstantiateMotorObjects()
         if (MotorB_Available) { MotorB = new Onboard_ESC (SIDEB, ANALOG_SPECFUNCTION_MIN_VAL, ANALOG_SPECFUNCTION_MAX_VAL, ANALOG_SPECFUNCTION_CENTER_VAL); MotorB->begin(); }
         //DebugSerial->print(F("Motor A Available: ")); PrintLnTrueFalse(MotorA_Available);
         //DebugSerial->print(F("Motor B Available: ")); PrintLnTrueFalse(MotorB_Available);
+
+        // NOTE: For the Heclo shield we do not permit generic usage of the C & D motors because that would require even more changes to OP Config, and it is unlikely 
+        // someone will want to use them for anything other than drive motors. 
 }
 
 
@@ -633,7 +664,10 @@ void SetupPins()
 
 // Voltage sensor
     pinMode(pin_BattVoltage, INPUT);
-                                                
+
+// Amperage sensor
+    pinMode(OB_TOTAL_CURRENT_SENSE, INPUT);  // Measures the total current draw of the main motors, whether they are driven by the onboard VNH5050s or external ESCs  
+
 // Dipswitch pins
     // These are held to ground when On, but left floating when Off - so we use the input pullups to keep them high when Off
     pinMode(pin_Dip1, INPUT_PULLUP);        // Input    - Dipswitch 1
@@ -686,9 +720,11 @@ void SetupPins()
     else                                            digitalWrite(pin_AuxOutput, LOW);       
 
     // Onboard motorized outputs
-    pinMode(OB_MA_PWM, OUTPUT);             // Motor A
-    pinMode(OB_MB_PWM, OUTPUT);             // Motor B
-    pinMode(OB_SMOKER_PWM, OUTPUT);         // Smoker
+    pinMode(OB_MA_PWM, OUTPUT);             // Motor A PWM, VNH5050 30A 
+    pinMode(OB_MB_PWM, OUTPUT);             // Motor B PWM,  VNH5050 30A
+    pinMode(OB_MC_PWM, OUTPUT);             // Motor C PWM (Turret), BD63573NUV 3A
+    pinMode(OB_MD_PWM, OUTPUT);             // Motor D PWM (Turret), BD63573NUV 3A  
+    pinMode(OB_SMOKER_PWM, OUTPUT);          // Smoker    
     
     // Mechanical Recoil Trigger
     pinMode(pin_MechRecoilMotor, OUTPUT);   // Output   - Transistor for Asiatam, Tamiya or similar mechanical recoil units

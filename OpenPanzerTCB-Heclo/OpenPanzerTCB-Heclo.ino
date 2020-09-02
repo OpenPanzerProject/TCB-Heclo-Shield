@@ -1,14 +1,17 @@
-/* OpenPanzerTCB    Open Panzer Tank Control Board (TCB) firmware
+/* OpenPanzerTCB    Open Panzer Tank Control Board (TCB) firmware for the Heclo shield
  * Source:          openpanzer.org              
- * Authors:         Luke Middleton
+ * Authors:         Luke Middleton, Kim Olsen (username Heclo)
  * 
  * Copyright 2020 Open Panzer
  *   
  * For more information, see the Open Panzer Wiki:
  * http://wiki.openpanzer.org
  * 
- * TCB GitHub Repository:
- * https://github.com/OpenPanzerProject/TCB
+ * TCB Heclo Shield GitHub Repository:
+ * https://github.com/OpenPanzerProject/TCB-Heclo-Shield
+ * 
+ * Discussion thread for the Heclo shield: 
+ * http://openpanzer.org/forum/index.php?topic=240.0
  *    
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -58,12 +61,17 @@
 // These function prototypes need to go at the very top of the sketch or else the IDE won't compile correctly. 
 void TransmissionEngage(boolean debugMsg=true);
 
+// 
+//#include "mavlink/include/mavlink_types.h"  //Mavlink included for the sake of using the CRC calculation function when sending telemetry data packets 
+//#include "mavlink/include/mavlink.h"
+unsigned long lastStatus = millis();    //Timer to use with telemetry status message
+
 
 // GLOBAL VARIABLES
 // ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------>>
 // HARDWARE VERSION
-    DEVICE HardwareVersion = DEVICE_TCB_MKI;     // This is the TCB Mk I
-    
+    DEVICE HardwareVersion = DEVICE_HECLO_SHIELD; // This is the Heclo TCB shield for Mega2560 boards
+
 // PROJECT SPECIFIC EEPROM
     OP_EEPROM eeprom;                            // Wrapper class for dealing with eeprom. Note that EEPROM is also a valid object, it is the name of the EEPROMex class instance. Use the correct one!
                                                  // OP_EEPROM basically provides some further functionality beyond EEPROMex. 
@@ -159,6 +167,9 @@ void TransmissionEngage(boolean debugMsg=true);
         Onboard_ESC * MotorB;
         boolean MotorA_Available = false;
         boolean MotorB_Available = false;
+        // The Heclo shield has two more motor outputs, but for now we only permit them to be used for drive motors, and do not allow them to be made available for general purpose use
+        boolean MotorC_Available = false;
+        boolean MotorD_Available = false;        
 
 // ENGINE DELAY, MOTOR IDLE OFF, and PREHEAT TIMERS 
     boolean EngineRunning = false;               // Initialize to engine off
@@ -430,11 +441,17 @@ void setup()
     // SET DEBUG TO USER SETTING IN ANOTHER SECOND
     // -------------------------------------------------------------------------------------------------------------------------------------------------->    
         timer.setTimeout(1000, RestoreDebug);
+        replyStatus();  //Run the telemetry status function at startup
 }
 
 
 void loop()
 {
+    // Run the telemetry status at 10Hz
+     if (millis() - lastStatus > 100UL) {
+    lastStatus = millis();
+    replyStatus(); 
+  }
 // MAIN LOOP VARIABLES
 // ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------>>
 // Drive Modes
@@ -450,15 +467,19 @@ void loop()
     static boolean DriveFlag = false;                                 // We start with movement allowed
     static unsigned long TransitionStart;                             // A marker which records the time when the shift transition begins
     static int ThrottleCommand = 0;                                   // Easier than writing "Radio.Sticks.Throttle.command" over and over. Throttle command is a command related to engine speed.
+//    static int ThrottleCommandSetpoint = 0;                           // PID 
     static int ThrottleCommand_Previous = 0;                          // Value of throttle command from last time through loop
     static int DriveCommand = 0;                                      // Drive command is the speed to the wheels through the transmission. Not the same as throttle. 
+    static int DriveCommandSetpoint = 0;
     static int TurnCommand = 0;                                       // Turn command
     static int TurnCommand_Previous = 0;                              // Value of turn command last through loop
     static int DriveSpeed = 0;                                        // Differs from Command which is what we are being told by the Tx stick - DriveSpeed is what is being told the motors by software, after modifications to command. 
+    static int DriveSpeedSetpoint = 0;
     static int DriveSpeed_Previous = 0;                               // Previous value of DriveSpeed
     static uint8_t DriveSpeedPct = 0;
     static uint8_t DriveSpeedPct_Previous = 0;
     static int ThrottleSpeed = 0;                                     // This will be the RPM of the engine, which is not the same as the drive speed
+    static int ThrottleSpeedSetpoint = 0;
     static int ThrottleSpeed_Previous = 0;                            // 
     static int RightSpeed = 0;                                        // We also have variables for the speed split between the two tracks
     static int LeftSpeed = 0;
@@ -966,7 +987,7 @@ if (Startup)
                 }
     
                 // Ok, DriveSpeed finally - GetDriveSpeed() primarily applies any acceleration/deceleration constraints. Remember, DriveSpeed is the speed of the vehicle.
-                DriveSpeed = Driver.GetDriveSpeed(DriveSpeed, DriveSpeed_Previous, DriveModeActual, Braking);
+                DriveSpeed = Driver.GetDriveSpeed(DriveSpeed, DriveSpeed_Previous, DriveModeActual, Braking, ForwardSpeed_Max ,ReverseSpeed_Max);
     
                 // In this case the recoil is over, return DriveModeActual to STOP
                 if (DriveModeActual == TRACK_RECOIL && DriveSpeed == 0)
@@ -980,7 +1001,7 @@ if (Startup)
             {   // This is a neutral turn
                 DriveSpeed = 0; // Neutral turns ignore drive speed
                 // If enabled, we apply acceleration ramping to TurnSpeed (speed of neutral turn). Deceleration ramping will automatically be ignored for neutral turns, even if enabled (it looks silly)
-                TurnSpeed = Driver.GetDriveSpeed(TurnSpeed, TurnSpeed_Previous, DriveModeActual, Braking);
+                TurnSpeed = Driver.GetDriveSpeed(TurnSpeed, TurnSpeed_Previous, DriveModeActual, Braking, ForwardSpeed_Max ,ReverseSpeed_Max);
             }
         }
         else
@@ -1098,7 +1119,7 @@ if (Startup)
                     // And a steering command for the steering motor
                     if (TurnCommand_Previous != TurnCommand)
                     {
-                        SteeringMotor->setSpeed(TurnCommand);   // We send TurnCommand rather than TurnSpeed because we don't want any scaling effects applied in this case. TurnCommand is just equal to the stick input. 
+                        SteeringMotor->setSpeed(0.5*TurnCommand);   // We send TurnCommand rather than TurnSpeed because we don't want any scaling effects applied in this case. TurnCommand is just equal to the stick input. 
                     }
                     break;                    
             }
@@ -1575,10 +1596,3 @@ if (Startup)
     ThrottleSpeed_Previous = ThrottleSpeed;
     TurnCommand_Previous = TurnCommand;   
 }
-
-
-
-
-
-
-
