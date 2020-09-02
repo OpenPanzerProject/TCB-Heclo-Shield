@@ -296,7 +296,7 @@ void OP_Driver::OCR3A_ISR()
 
 // Hopefully the community will develop some interesting presets within this framework.  
 
-int OP_Driver::GetDriveSpeed(int DriveCMD, int LastDriveSpeed, _driveModes DriveMode, boolean Brake, int ForwardSpeed_Max , int ReverseSpeed_Max)    // This function returns a DriveSpeed output, adjusted for accel/decel constraints
+int OP_Driver::GetDriveSpeed(int DriveCMD, int LastDriveSpeed, _driveModes DriveMode, boolean Brake, int ForwardSpeed_Max , int ReverseSpeed_Max, Drive_t driveType)    // This function returns a DriveSpeed output, adjusted for accel/decel constraints
 {
 int8_t t_DriveSkipNum = 0;              // Temporary number of skips to reach before incrementing our speed. Initialize to zero, but it will be set to something else below.
 int8_t t_DriveRampStep = 0;             // Temporary DriveRampStep value
@@ -317,10 +317,13 @@ boolean SimpleTrackRecoil = true;		// In January 2020 we added a different track
     if (DriveMode == REVERSE || DriveMode == TRACK_RECOIL || (DriveMode == NEUTRALTURN && DriveCMD < 0)) neg = true;
     else neg = false;
 
-    // This is where the DriveCMD gets intercepted so that the engine wattage can be regulated 
-    if (DriveMode != NEUTRALTURN){
-        DriveCMD = MotorPowerPid(DriveCMD, ForwardSpeed_Max ,ReverseSpeed_Max);
+    
+    if (driveType == ONBOARD_CD && DriveMode != NEUTRALTURN)
+	{
+		// This is where the DriveCMD gets intercepted so that the engine wattage can be regulated, but only with onboard motor drivers C & D
+		DriveCMD = MotorPowerPid(DriveCMD, ForwardSpeed_Max ,ReverseSpeed_Max);
     }
+	
     // Now convert to absolute
     DriveCMD = abs(DriveCMD);
     LastDriveSpeed = abs(LastDriveSpeed);
@@ -750,7 +753,7 @@ Serial.print("desiredWatt ");
 // instead of ramped. 
 
 // For now, all we do here is try to prevent the throttle sound from stopping suddenly. 
-int OP_Driver::GetThrottleSpeed(int ThrottleCMD, int LastThrottleSpeed, int DriveSpeed, _driveModes DriveMode, boolean Brake)
+int OP_Driver::GetThrottleSpeed(int ThrottleCMD, int LastThrottleSpeed, int DriveSpeed, _driveModes DriveMode, boolean Brake, Drive_t driveType)
 {
     int8_t t_ThrottleSkipNum = 0;           // Temporary number of interrupts to skip before incrementing throttle speed. Initialize to zero, but it needs to be set to something else below (if ramping is used). 
     int8_t t_ThrottleRampStep = 0;          // Temporary ThrottleRampStep value
@@ -771,112 +774,113 @@ int OP_Driver::GetThrottleSpeed(int ThrottleCMD, int LastThrottleSpeed, int Driv
 
     // Now, calculate actual throttle speed: 
 
+	if (driveType != ONBOARD_CD)	// Throttle speed adjustments are ignored with the onboard motor drivers C & D
+	{
+		// BRAKING or DECELERATING
+		// =============================================================================================================================================================>>
+		if (Brake == true || ThrottleCMD < LastThrottleSpeed)
+		{   // We want to decelerate
 
-    // BRAKING or DECELERATING
-    // =============================================================================================================================================================>>
-  /*  if (Brake == true || ThrottleCMD < LastThrottleSpeed)
-    {   // We want to decelerate
+			(DriveMode == FORWARD) ? FullStopCmd = Forward_FullStopCmd : FullStopCmd = Reverse_FullStopCmd;
+			if (Brake && ThrottleCMD >= FullStopCmd)
+			{   // This is the same calculation as we did above for drive speed, this means a full stop brake command. 
+				// In the drive speed case, we set the tank to stop immediately. Here, we could play a special hard braking sound
+				// or whatever (you would have to pass in a pointer to the OP_Sound object to this function)
+			}
 
-        (DriveMode == FORWARD) ? FullStopCmd = Forward_FullStopCmd : FullStopCmd = Reverse_FullStopCmd;
-        if (Brake && ThrottleCMD >= FullStopCmd)
-        {   // This is the same calculation as we did above for drive speed, this means a full stop brake command. 
-            // In the drive speed case, we set the tank to stop immediately. Here, we could play a special hard braking sound
-            // or whatever (you would have to pass in a pointer to the OP_Sound object to this function)
-        }
+			// While the tank may be able to slow down very quickly, there is no "brake" on the engine RPM. Think of a real car, 
+			// you can have the pedal to the floor and then let go, but it will still take a moment for the engine speed to return 
+			// to idle on its own. 
+			
+			// What we're trying to do on deceleration, is prevent the engine sound from stopping too suddenly, because that will sound strange. 
+			// To ease it back to idle, we use ramping. 
+			ThrottleRampEnabled = true;                         // Enable throttle ramping
+			RampDir = -1;                                       // Tells us we are decelerating
+			t_ThrottleRampStep = DRIVE_RAMP_STEP_DEFAULT;       // Set step to default (2 steps per active interrupt)
+			
+			// This is just hard-coded for now. 
+			// Combined these two statements result in an engine that takes ~1.4 seconds to return to idle from full speed
+			if (LastThrottleSpeed > 50)                         
+			{   // This rate only appplies to throttle speeds above 50, and this portion will take approximately 1 second
+				t_ThrottleRampStep = 3;
+				t_ThrottleSkipNum = 4;
+			}
+			else
+			{   // At throttle speeds below 50, we slow down a bit more slowly. From 50 to 0 these settings will take ~0.4 seconds
+				t_ThrottleRampStep = 2;
+				t_ThrottleSkipNum = 4;      
+			}                               
+		}
+	   
+		// ACCELERATION
+		// =============================================================================================================================================================>>
+		else if (ThrottleCMD > LastThrottleSpeed) // Acceleration 
+		{   // Here we do use a very small bit of ramping on acceleration. If you step on the gas, the engine RPM responds immediately (even though tank speed won't respond so quickly),
+			// and we want to keep that responsive feel. But some sound cards like the Taigen will sound odd if you jump straight to full speed so we do introduce a slight delay. 
 
-        // While the tank may be able to slow down very quickly, there is no "brake" on the engine RPM. Think of a real car, 
-        // you can have the pedal to the floor and then let go, but it will still take a moment for the engine speed to return 
-        // to idle on its own. 
-        
-        // What we're trying to do on deceleration, is prevent the engine sound from stopping too suddenly, because that will sound strange. 
-        // To ease it back to idle, we use ramping. 
-        ThrottleRampEnabled = true;                         // Enable throttle ramping
-        RampDir = -1;                                       // Tells us we are decelerating
-        t_ThrottleRampStep = DRIVE_RAMP_STEP_DEFAULT;       // Set step to default (2 steps per active interrupt)
-        
-        // This is just hard-coded for now. 
-        // Combined these two statements result in an engine that takes ~1.4 seconds to return to idle from full speed
-        if (LastThrottleSpeed > 50)                         
-        {   // This rate only appplies to throttle speeds above 50, and this portion will take approximately 1 second
-            t_ThrottleRampStep = 3;
-            t_ThrottleSkipNum = 4;
-        }
-        else
-        {   // At throttle speeds below 50, we slow down a bit more slowly. From 50 to 0 these settings will take ~0.4 seconds
-            t_ThrottleRampStep = 2;
-            t_ThrottleSkipNum = 4;      
-        }                               
-    }
-   
-    // ACCELERATION
-    // =============================================================================================================================================================>>
-    else if (ThrottleCMD > LastThrottleSpeed) // Acceleration 
-    {   // Here we do use a very small bit of ramping on acceleration. If you step on the gas, the engine RPM responds immediately (even though tank speed won't respond so quickly),
-        // and we want to keep that responsive feel. But some sound cards like the Taigen will sound odd if you jump straight to full speed so we do introduce a slight delay. 
+			// Don't limit anything at a low level so we get a responsive throttle sound. But above that we do limit just a bit so it doesn't sound jerky, the settings here
+			// will take approximately 3/4 of a second.
+			if (LastThrottleSpeed > 60)
+			{
+				ThrottleRampEnabled = true;
+				RampDir = 1;
+				t_ThrottleRampStep = 2;
+				t_ThrottleSkipNum = 2;
+			}
+			// else if throttle speed < 60 then there will be no ramping
+		}
 
-        // Don't limit anything at a low level so we get a responsive throttle sound. But above that we do limit just a bit so it doesn't sound jerky, the settings here
-        // will take approximately 3/4 of a second.
-        if (LastThrottleSpeed > 60)
-        {
-            ThrottleRampEnabled = true;
-            RampDir = 1;
-            t_ThrottleRampStep = 2;
-            t_ThrottleSkipNum = 2;
-        }
-        // else if throttle speed < 60 then there will be no ramping
-    }
+		// Don't let t_ThrottleRampStep get below 1
+		if (t_ThrottleRampStep < 1) { t_ThrottleRampStep = 1; }
+		
+		// Don't let t_ThrottleSkipNum get below 1
+		if (t_ThrottleSkipNum < 1) { t_ThrottleSkipNum = 1; }
+			
+		// Save ramp step 
+		if (ThrottleRampEnabled) 
+		{   
+			uint8_t sreg = SREG;                        // Save interrupt register
+			cli();                                      // Disable interrupts
+				ThrottleRampStep = t_ThrottleRampStep * RampDir;    // Multiply by RampDir which is 1 or -1 depending on the direction
+				ThrottleSkipNum = t_ThrottleSkipNum;    // Number of interrupts to skip before incrementing by ThrottleRampStep
+				t_ThrottleSpeed = RampedThrottleSpeed;  // We take the ramped value, actually from last update. 
+			SREG = sreg;                                // Restore register
+		}
+		else
+		{
+			// No ramping - output will be direct ThrottleCMD
+			uint8_t sreg = SREG;                        // Save interrupt register
+			cli();                                      // Disable interrupts
+				ThrottleRampStep = 0;                   // No incremental changes
+				RampedThrottleSpeed = t_ThrottleSpeed;  // We also keep RampedThrottleSpeed equal to throttle so when ramping is turned back on, the Ramped value will already be correct to start 
+			SREG = sreg;                                // Restore register     
+		}
 
-    // Don't let t_ThrottleRampStep get below 1
-    if (t_ThrottleRampStep < 1) { t_ThrottleRampStep = 1; }
-    
-    // Don't let t_ThrottleSkipNum get below 1
-    if (t_ThrottleSkipNum < 1) { t_ThrottleSkipNum = 1; }
-        
-    // Save ramp step 
-    if (ThrottleRampEnabled) 
-    {   
-        uint8_t sreg = SREG;                        // Save interrupt register
-        cli();                                      // Disable interrupts
-            ThrottleRampStep = t_ThrottleRampStep * RampDir;    // Multiply by RampDir which is 1 or -1 depending on the direction
-            ThrottleSkipNum = t_ThrottleSkipNum;    // Number of interrupts to skip before incrementing by ThrottleRampStep
-            t_ThrottleSpeed = RampedThrottleSpeed;  // We take the ramped value, actually from last update. 
-        SREG = sreg;                                // Restore register
-    }
-    else
-    {
-        // No ramping - output will be direct ThrottleCMD
-        uint8_t sreg = SREG;                        // Save interrupt register
-        cli();                                      // Disable interrupts
-            ThrottleRampStep = 0;                   // No incremental changes
-            RampedThrottleSpeed = t_ThrottleSpeed;  // We also keep RampedThrottleSpeed equal to throttle so when ramping is turned back on, the Ramped value will already be correct to start 
-        SREG = sreg;                                // Restore register     
-    }
+		SetRampInterrupt();                             // This function will make sure the ramp interrupt is enabled if needed, but if not, will turn it off
 
-    SetRampInterrupt();                             // This function will make sure the ramp interrupt is enabled if needed, but if not, will turn it off
-
-    // Do a sanity check on t_ThrottleSpeed. 
-    // Recall t_ThrottleSpeed is either ThrottleCMD (set at the beginning), or RampedThrottleSpeed, or possibly 0 if we are braking
-    if (Brake == true)
-    {   // The most we can do when braking, is arrive at a stop. If abs(t_ThrottleSpeed) gets less than zero, it will overshoot the stop and start accelerating again,
-        // which we don't want. 
-        if (t_ThrottleSpeed < 0) { t_ThrottleSpeed = 0; }
-    }   
-    else
-    {
-        if (RampDir == 1)          // ACCEL
-        {
-            // If we are accelerating, we are trying to reach ThrottleCMD. We don't want to accelerate PAST what we have commanded. 
-            t_ThrottleSpeed = constrain(t_ThrottleSpeed, 0, ThrottleCMD);    // (we already turned ThrottleCMD into abs() at the start, so this works for forward or reverse acceleration)
-        }
-        else if (RampDir == -1)    // DECEL
-        {
-            // If we are decelerating, that means we are commanding less than where we are presently. 
-            // We don't let the throttle speed decrease to less than what we are commanding. 
-            // Obviously we don't let it be more than the maximum amount either, this is less likely. 
-            t_ThrottleSpeed = constrain(t_ThrottleSpeed, ThrottleCMD, MOTOR_MAX_FWDSPEED); // (we already turned ThrottleCMD into abs() at the start, so this works for forward or reverse deceleration)
-        }
-    }
-*/
+		// Do a sanity check on t_ThrottleSpeed. 
+		// Recall t_ThrottleSpeed is either ThrottleCMD (set at the beginning), or RampedThrottleSpeed, or possibly 0 if we are braking
+		if (Brake == true)
+		{   // The most we can do when braking, is arrive at a stop. If abs(t_ThrottleSpeed) gets less than zero, it will overshoot the stop and start accelerating again,
+			// which we don't want. 
+			if (t_ThrottleSpeed < 0) { t_ThrottleSpeed = 0; }
+		}   
+		else
+		{
+			if (RampDir == 1)          // ACCEL
+			{
+				// If we are accelerating, we are trying to reach ThrottleCMD. We don't want to accelerate PAST what we have commanded. 
+				t_ThrottleSpeed = constrain(t_ThrottleSpeed, 0, ThrottleCMD);    // (we already turned ThrottleCMD into abs() at the start, so this works for forward or reverse acceleration)
+			}
+			else if (RampDir == -1)    // DECEL
+			{
+				// If we are decelerating, that means we are commanding less than where we are presently. 
+				// We don't let the throttle speed decrease to less than what we are commanding. 
+				// Obviously we don't let it be more than the maximum amount either, this is less likely. 
+				t_ThrottleSpeed = constrain(t_ThrottleSpeed, ThrottleCMD, MOTOR_MAX_FWDSPEED); // (we already turned ThrottleCMD into abs() at the start, so this works for forward or reverse deceleration)
+			}
+		}
+	}
     return t_ThrottleSpeed;
 }
 

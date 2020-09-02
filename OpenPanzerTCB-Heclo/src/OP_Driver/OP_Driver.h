@@ -112,8 +112,8 @@ public:
     static uint8_t getTurnMode();
     static void setNeutralTurnAllowed(boolean);
     static boolean getNeutralTurnAllowed(void);
-    int GetDriveSpeed(int, int, _driveModes, boolean, int, int);      // What is the *drive* speed. This is used to control the tank movement. // two integers added for max forward/reverse speed
-    int GetThrottleSpeed(int, int, int, _driveModes, boolean); // What is the *engine* speed (different from drive speed) - this is used for the sound and smoker outputs
+    int GetDriveSpeed(int, int, _driveModes, boolean, int, int, Drive_t);   // What is the *drive* speed. This is used to control the tank movement. // two integers added for max forward/reverse speed, plus the motor type
+    int GetThrottleSpeed(int, int, int, _driveModes, boolean, Drive_t); // What is the *engine* speed (different from drive speed) - this is used for the sound and smoker outputs
     int ScaleTurnCommand(int, int);                         // This scales a turn command to some lesser amount, used for neutral turns (tank mode) and turn command applied to rear treads in halftrack mode.
     void MixSteering(int, int, int*, int*);                 // This mixes throttle and turn commands into speeds for the left and right treads
                                                             // (int DriveSpeed, int TurnAmount, int *RightSpeed, int *LeftSpeed)
