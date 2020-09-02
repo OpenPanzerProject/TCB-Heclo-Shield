@@ -1,7 +1,7 @@
 ![HecloShield](http://www.openpanzer.org/downloads/members/hecloshield/HecloShield_git.jpg)
 
 ## Heclo Shield TCB
-Developed by Kim Olsen from Denmark, the Heclo shield is designed to be used in combination with any Arduino-compatible Mega board. The shield provides all the components needed for both the TCB _and_ the Open Panzer Sound card on a single board. It also adds two additional onboard motor drivers capable of delivering up to 30 amps each. In other words, this design creates a complete tank control package with no need for external speed controls or sound cards (though those are still supported).
+Developed by Kim Olsen from Denmark, the Heclo shield is designed to be used in combination with any Arduino-compatible Mega2560 board. The shield provides all the components needed for both the TCB _and_ the Open Panzer Sound card on a single board. It also adds two additional onboard motor drivers capable of delivering up to 30 amps each. In other words, this design creates a complete tank control package with no need for external speed controls or sound cards (though those are still supported).
 
 The board uses surface mount components on both the top and bottom of the board, so requires advanced assembly skills if you want to attempt to build your own.
 
