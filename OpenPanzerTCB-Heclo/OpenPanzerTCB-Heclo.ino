@@ -448,10 +448,12 @@ void setup()
 void loop()
 {
     // Run the telemetry status at 10Hz
-     if (millis() - lastStatus > 100UL) {
-    lastStatus = millis();
-    replyStatus(); 
-  }
+    if (millis() - lastStatus > 100UL) 
+    {
+        lastStatus = millis();
+        replyStatus(); 
+    }
+    
 // MAIN LOOP VARIABLES
 // ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------>>
 // Drive Modes

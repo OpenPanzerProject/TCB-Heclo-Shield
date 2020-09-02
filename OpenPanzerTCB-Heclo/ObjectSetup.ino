@@ -720,10 +720,10 @@ void SetupPins()
     else                                            digitalWrite(pin_AuxOutput, LOW);       
 
     // Onboard motorized outputs
-    pinMode(OB_MA_PWM, OUTPUT);             // Motor A PWM, VNH5050 30A 
-    pinMode(OB_MB_PWM, OUTPUT);             // Motor B PWM,  VNH5050 30A
-    pinMode(OB_MC_PWM, OUTPUT);             // Motor C PWM (Turret), BD63573NUV 3A
-    pinMode(OB_MD_PWM, OUTPUT);             // Motor D PWM (Turret), BD63573NUV 3A  
+    pinMode(OB_MA_PWM, OUTPUT);             // Motor A PWM (Turret), BD63573NUV 3A
+    pinMode(OB_MB_PWM, OUTPUT);             // Motor B PWM (Turret), BD63573NUV 3A  
+    pinMode(OB_MC_PWM, OUTPUT);             // Motor C PWM (Drive), VNH5050 30A 
+    pinMode(OB_MD_PWM, OUTPUT);             // Motor D PWM (Drive), VNH5050 30A
     pinMode(OB_SMOKER_PWM, OUTPUT);          // Smoker    
     
     // Mechanical Recoil Trigger

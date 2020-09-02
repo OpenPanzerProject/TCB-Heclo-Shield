@@ -302,7 +302,7 @@ void Pololu_SerialESC::update(void)
 
 
 // ------------------------------------------------------------------------------------------------------------------>>
-// ONBOARD MOTOR CONTROLLERS A & B
+// ONBOARD MOTOR CONTROLLERS A & B 
 // ------------------------------------------------------------------------------------------------------------------>>
 void Onboard_ESC::begin(void)
 {
@@ -313,11 +313,9 @@ void Onboard_ESC::begin(void)
     // The onboard motor controller uses Timer5 for PWM. See OP_Settings.h for details. 
 
     // CONTROL PINS
-        pinMode (OB_MA1,    OUTPUT); 
-        pinMode (OB_MA2,    OUTPUT); 
+        pinMode (OB_MA_DIR, OUTPUT); 
         pinMode (OB_MA_PWM, OUTPUT); 
-        pinMode (OB_MB1,    OUTPUT); 
-        pinMode (OB_MB2,    OUTPUT); 
+        pinMode (OB_MB_DIR, OUTPUT); 
         pinMode (OB_MB_PWM, OUTPUT); 
 
     // PWM
@@ -352,27 +350,27 @@ void Onboard_ESC::setSpeed(int s)
     {   //SIDEA - motor A
         if (s < 0)
         {   //Reverse
-            digitalWrite(OB_MC_DIR, LOW);   // The BD63573 only has one direction pin
+            digitalWrite(OB_MA_DIR, LOW);   // The BD63573 only has one direction pin
         }
         else
         {   //Forward
-            digitalWrite(OB_MC_DIR, HIGH);
+            digitalWrite(OB_MA_DIR, HIGH);
         }
         // Now set the PWM, always a positive number
-        OB_MC_OCR = abs(s); // OB_MA_OCR is defined in OP_Settings.h
+        OB_MA_OCR = abs(s); // OB_MA_OCR is defined in OP_Settings.h
     }
     else if (ESC_Position == SIDEB)
     {   //SIDEB - motor B
         if (s < 0)
         {   //Reverse
-            digitalWrite(OB_MD_DIR, LOW);
+            digitalWrite(OB_MB_DIR, LOW);
         }
         else
         {   //Forward
-            digitalWrite(OB_MD_DIR, HIGH);
+            digitalWrite(OB_MB_DIR, HIGH);
         }
         // Now set the PWM, always a positive number
-        OB_MD_OCR = abs(s); // OB_MB_OCR is defined in OP_Settings.h
+        OB_MB_OCR = abs(s); // OB_MB_OCR is defined in OP_Settings.h
     }   
 }
 
@@ -380,11 +378,11 @@ void Onboard_ESC::stop(void)
 {
     if (ESC_Position == SIDEA)
     {
-        OB_MC_OCR = 0;
+        OB_MA_OCR = 0;
     }
     else if (ESC_Position == SIDEB)
     {
-        OB_MD_OCR = 0;
+        OB_MB_OCR = 0;
     }
 }
 
@@ -403,21 +401,21 @@ void Onboard_ESC_CD::begin(void)
     // The onboard motor controller uses Timer5 for PWM. See OP_Settings.h for details. 
 
     // CONTROL PINS
-        pinMode (OB_MA1,    OUTPUT); 
-        pinMode (OB_MA2,    OUTPUT); 
-        pinMode (OB_MA_PWM, OUTPUT); 
-        pinMode (OB_MB1,    OUTPUT); 
-        pinMode (OB_MB2,    OUTPUT); 
-        pinMode (OB_MB_PWM, OUTPUT); 
+        pinMode (OB_MC1,    OUTPUT); 
+        pinMode (OB_MC2,    OUTPUT); 
+        pinMode (OB_MC_PWM, OUTPUT); 
+        pinMode (OB_MD1,    OUTPUT); 
+        pinMode (OB_MD2,    OUTPUT); 
+        pinMode (OB_MD_PWM, OUTPUT); 
 
     // PWM
         if (ESC_Position == SIDEA)
         {   // For safety's sake, set the output duty cycle to 0 before starting. This should also already have been done in SetupTimer5()
-            OB_MA_OCR = 0;          
+            OB_MC_OCR = 0;          
         }
         if (ESC_Position == SIDEB)
         {
-            OB_MB_OCR = 0;          
+            OB_MD_OCR = 0;          
         }
 }
 
@@ -442,31 +440,31 @@ void Onboard_ESC_CD::setSpeed(int s)
     {   //SIDEA - motor A
         if (s < 0)
         {   //Reverse
-            digitalWrite(OB_MA1, LOW);
-            digitalWrite(OB_MA2, HIGH);
+            digitalWrite(OB_MC1, LOW);
+            digitalWrite(OB_MC2, HIGH);
         }
         else
         {   //Forward
-            digitalWrite(OB_MA1, HIGH);
-            digitalWrite(OB_MA2, LOW);
+            digitalWrite(OB_MC1, HIGH);
+            digitalWrite(OB_MC2, LOW);
         }
         // Now set the PWM, always a positive number
-        OB_MA_OCR = abs(s); // OB_MA_OCR is defined in OP_Settings.h
+        OB_MC_OCR = abs(s); // OB_MC_OCR is defined in OP_Settings.h
     }
     else if (ESC_Position == SIDEB)
     {   //SIDEB - motor B
         if (s < 0)
         {   //Reverse
-            digitalWrite(OB_MB1, LOW);
-            digitalWrite(OB_MB2, HIGH);
+            digitalWrite(OB_MD1, LOW);
+            digitalWrite(OB_MD2, HIGH);
         }
         else
         {   //Forward
-            digitalWrite(OB_MB1, HIGH);
-            digitalWrite(OB_MB2, LOW);
+            digitalWrite(OB_MD1, HIGH);
+            digitalWrite(OB_MD2, LOW);
         }
         // Now set the PWM, always a positive number
-        OB_MB_OCR = abs(s); // OB_MB_OCR is defined in OP_Settings.h
+        OB_MD_OCR = abs(s); // OB_MD_OCR is defined in OP_Settings.h
     }   
 }
 
@@ -475,11 +473,11 @@ void Onboard_ESC_CD::stop(void)
     
     if (ESC_Position == SIDEA)
     {
-        OB_MA_OCR = 0;
+        OB_MC_OCR = 0;
     }
     else if (ESC_Position == SIDEB)
     {
-        OB_MB_OCR = 0;
+        OB_MD_OCR = 0;
     }
 }
 
