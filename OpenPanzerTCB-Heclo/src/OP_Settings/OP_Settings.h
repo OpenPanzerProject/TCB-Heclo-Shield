@@ -26,9 +26,10 @@
 // DIY VERSION
 // ------------------------------------------------------------------------------------------------------------------------------------------------------->>
     // Un-comment the line below if you are using this firmware on a standard Arduino MEGA as a DIY project. 
+	// NOTE: BY DEFINITION THE HECLO SHIELD IS A DIY VERSION - SO ALWAYS LEAVE THIS UNCOMMENTED
     
     // - - - - - - - - - - 
-    // #define TCB_DIY    
+    #define TCB_DIY    
     // - - - - - - - - - - 
     
     // Explanation: There are two pins on the standard TCB that are not connected on the Arduino MEGA. When we define "TCB_DIY" these two pins are changed 
@@ -204,12 +205,15 @@
     // Nothing wrong with that, but actually the Taigen pulses tend to go a little long anyway, so 1024 seems to work just fine. 
 
     // TCCR4A = 0x2B    // PWM disabled on OCR4A - Fast PWM 10 bit
+    // TCCR4A = 0xAA    //  TOP 512 ~16 KHz 
     // TCCR4B = 0x09    // Fast PWM, 1 (no) prescaler, TOP 1024 - frequency ~16 KHz, tick every 0.0625uS (16 ticks per uS)
+    // TCCR4B = 0x01    // Phase correct PWM, 1 (no) prescaler, TOP 512 ~16 KHz 
     // TIFR4 = 0x2F     // Clear all interrupt flags
     // TIMSK4 = 0x00    // No interrupts enabled - later in OP_TaigenSound.cpp we will enable overflow interrupts by setting the TOIE4 bit in TIMSK4. 
+    #define MOTOR_PWM_TOP 511       // In case we decide to change it later, we won't have to modify the Onboard_ESC object since it will refer to this define.
     #define SetupTimer4() ({ \  
-        TCCR4A = 0x2B;       \
-        TCCR4B = 0x09;       \
+        TCCR4A = 0xAA; /*TCCR4A = 0x2B;*/       \       
+        TCCR4B = 0x01; /*TCCR4B = 0x09;*/      \       
         TIFR4 =  0x2F;       \
         TIMSK4 = 0x00;       \
         TCNT4 = 0;           \
@@ -268,9 +272,9 @@
     //OCR5B = 0-255;    // To set duty cycle on Arduino pin 45
     //OCR5C = 0-255;    // To set duty cycle on Arduino pin 44
 
-    #define MOTOR_PWM_TOP 255       // In case we decide to change it later, we won't have to modify the Onboard_ESC object since it will refer to this define.
+    //#define MOTOR_PWM_TOP 255       // In case we decide to change it later, we won't have to modify the Onboard_ESC object since it will refer to this define.
     #define SetupTimer5() ({ \  
-        TCCR5A = 0xA9;       \
+        TCCR5A = 0xAA; /*TCCR5A = 0xA9;*/       \ 
         TCCR5B = 0x01;       \
         TIFR5 =  0x2F;       \
         TIMSK5 = 0x00;       \
@@ -379,22 +383,39 @@
 // ------------------------------------------------------------------------------------------------------------------------------------------------------->>
 // MOTOR DRIVERS - ONBOARD  (OB for "OnBoard")
 // ------------------------------------------------------------------------------------------------------------------------------------------------------->>
-    // These are defines for the onboard L298 dual motor driver chip and the smoker MOSFET.
-    // The L298 is driven with 6 pins, two each directional pins and one PWM for each motor. The smoker MOSFET is uni-directional so only needs PWM.
+    // These are defines for the onboard VNH5050 motor driver chips and the smoker MOSFET.
+    // The VNH5050 is driven with 3 pins, two each directional pins and one PWM for each motor. The smoker MOSFET is uni-directional so only needs PWM.
     // Motor A
-    #define OB_MA1                      10  // This is the Arduino pin for MotorA, direction pin 1 (Atmega pin 23, PortB4)
-    #define OB_MA2                      6   // This is the Arduino pin for MotorA, direction pin 2 (Atmega pin 15, PortH3)
-    #define OB_MA_PWM                   45  // This is the Arduino pin for MotorA PWM (Atmega pin 39, PortL4)
-    #define OB_MA_OCR                OCR5B  // The output compare register associated with this pin
+    #define OB_MA1                      A1//47  // This is the Arduino pin for MotorA, direction pin 1 (Atmega pin 23, PortB4)
+    #define OB_MA2                      A2//49   // This is the Arduino pin for MotorA, direction pin 2 (Atmega pin 15, PortH3)
+    #define OB_MA_PWM                   6//45  // This is the Arduino pin for MotorA PWM (Atmega pin 39, PortL4)
+    #define OB_MA_OCR                OCR4A//OCR5B  // The output compare register associated with this pin
     // Motor B
-    #define OB_MB1                      13  // This is the Arduino pin for MotorB, direction pin 1 (Atmega pin 26, PortB7)
-    #define OB_MB2                      11  // This is the Arduino pin for MotorB, direction pin 2 (Atmega pin 24, PortB5)
-    #define OB_MB_PWM                   46  // This is the Arduino pin for MotorB PWM (Atmega pin 38, PortL3)
-    #define OB_MB_OCR                OCR5A  // The output compare register associated with this pin
+    #define OB_MB1                      A3//50  // This is the Arduino pin for MotorB, direction pin 1 (Atmega pin 26, PortB7)
+    #define OB_MB2                      A4//48  // This is the Arduino pin for MotorB, direction pin 2 (Atmega pin 24, PortB5)
+    #define OB_MB_PWM                   7//46  // This is the Arduino pin for MotorB PWM (Atmega pin 38, PortL3)
+    #define OB_MB_OCR                OCR4B//OCR5A  // The output compare register associated with this pin
     // Heng Long Smoker (we will call it SIDEA, there is only one)
-    #define OB_SMOKER_PWM               44  // This is the Arduino pin for the smoker mosfet PWM pin (Atmega pin 25, PortB6)
-    #define OB_SMOKER_OCR            OCR5C  // The output compare register associated with this pin
-    
+    #define OB_SMOKER_PWM               8  // This is the Arduino pin for the smoker mosfet PWM pin (Atmega pin 25, PortB6)
+    #define OB_SMOKER_OCR            OCR4C  // The output compare register associated with this pin
+    #define OB_TOTAL_CURRENT_SENSE      A7
+
+// ------------------------------------------------------------------------------------------------------------------------------------------------------->>
+// MOTOR DRIVERS - ONBOARD TURRET (OB for "OnBoard")
+// ------------------------------------------------------------------------------------------------------------------------------------------------------->>
+    // These are defines for the onboard BD63573  motor driver chips.
+    // The BD63573 is driven with 2 pins, one directional pin and one PWM for each motor. 
+    // Motor C
+    #define OB_MC_DIR                      48  // This is the Arduino pin for MotorA, direction pin 1 (Atmega pin 23, PortB4)
+    //#define OB_MC2                      50  // This is the Arduino pin for MotorA, direction pin 2 (Atmega pin 15, PortH3)
+    #define OB_MC_PWM                   46  // This is the Arduino pin for MotorA PWM (Atmega pin 39, PortL4)
+    #define OB_MC_OCR                OCR5A  // The output compare register associated with this pin
+    // Motor D
+    #define OB_MD_DIR                     47  // This is the Arduino pin for MotorB, direction pin 1 (Atmega pin 26, PortB7)
+    //#define OB_MD2                      49  // This is the Arduino pin for MotorB, direction pin 2 (Atmega pin 24, PortB5)
+    #define OB_MD_PWM                   45  // This is the Arduino pin for MotorB PWM (Atmega pin 38, PortL3)
+    #define OB_MD_OCR                OCR5B  // The output compare register associated with this pin
+          
 
 // ------------------------------------------------------------------------------------------------------------------------------------------------------->>
 // PINS! 
@@ -424,16 +445,16 @@
         #define pin_Button               A14      // Input    - Input pushbutton (ATmega K6)
 
     // Board LEDs
-        #define pin_RedLED               A3       // Output   - Red   LED on board (ATmega F3)
-        #define pin_GreenLED             A4       // Output   - Green LED on board (ATmega F4)
+        #define pin_RedLED               34//A3       // Output   - Red   LED on board (ATmega F3)
+        #define pin_GreenLED             35//A4       // Output   - Green LED on board (ATmega F4)
 
     // Transistorized Light outputs
         #define pin_Light1               53       // Output   - Light #1 output (headlights) (ATmega B0)
         #define pin_Light2               5        // Output   - Light #2 output (ATmega E3)
         #define pin_Brakelights          4        // Output   - Brake light output. PWM capable. (ATmega G5)
-        #define pin_AuxOutput            8        // Output   - Aux output. PWM capable. Has a flyback diode installed, this special output can drive a relay directly, or even a small motor (ATmega H5)
+        #define pin_AuxOutput            13//8        // Output   - Aux output. PWM capable. Has a flyback diode installed, this special output can drive a relay directly, or even a small motor (ATmega H5)
         #define pin_MuzzleFlash          41       // Output   - Trigger output for Taigen High Intensity muzzle flash unit (ATmega G0)
-        #define pin_HitNotifyLEDs        7        // Output   - Hit notification LEDs if using the Tamiya apple. PWM capable (ATmega H4)
+        #define pin_HitNotifyLEDs        11//7        // Output   - Hit notification LEDs if using the Tamiya apple. PWM capable (ATmega H4)
 
 #ifdef TCB_DIY
         //Machine Gun light output - DIY version. For compatibility with the regular TCB code, we specify it the long way
