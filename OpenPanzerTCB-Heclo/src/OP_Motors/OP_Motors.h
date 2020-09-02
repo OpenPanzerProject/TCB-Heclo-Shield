@@ -70,13 +70,14 @@ typedef char Drive_t;
 #define POLOLU      8
 #define SABERTOOTH  9
 #define OP_SCOUT    10
-#define ONBOARD     11  
+#define ONBOARD     11  							// Onboard motor drivers A & B
 #define SERVO_ESC   12
 #define SERVO_PAN   13
 #define SERVO_RECOIL 14
 #define DRIVE_DETACHED    15
+#define ONBOARD_CD	16								// Onboard motor drivers C & D - for the Heclo shield only
 //#define ADDITIONAL (number)
-#define LAST_DRIVE_TYPE DRIVE_DETACHED
+#define LAST_DRIVE_TYPE ONBOARD_CD
 const __FlashStringHelper *ptrDriveType(Drive_t dType); //Returns a character string that is name of drive type (see OP_Motors.cpp)
 
 
@@ -186,6 +187,15 @@ class Pololu_SerialESC: public Motor, public OP_PololuQik {
 class Onboard_ESC: public Motor {
   public:
     Onboard_ESC(ESC_POS_t pos, int min, int max, int middle) : Motor(pos,min,max,middle) {}
+    void setSpeed(int s);
+    void begin(void);   
+    void stop(void);
+    void update(void) { return; }   // Do nothing, we only need the update for serial controllers
+};
+
+class Onboard_ESC_CD: public Motor {
+  public:
+    Onboard_ESC_CD(ESC_POS_t pos, int min, int max, int middle) : Motor(pos,min,max,middle) {}
     void setSpeed(int s);
     void begin(void);   
     void stop(void);

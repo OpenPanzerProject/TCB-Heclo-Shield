@@ -41,6 +41,7 @@ const __FlashStringHelper *ptrDriveType(Drive_t dType) {
   F("Pan Servo"), 
   F("Recoil Servo"),
   F("Detached/NA"),
+  F("Onboard Motor Drivers C & D"),
   F("Unknown")};
   return Names[dType];
 };
@@ -347,6 +348,96 @@ void Onboard_ESC::setSpeed(int s)
     // However according to the Atmega2560 datasheet (pg 156), the two extremes of the duty cycle setting are special cases:
     // If s = 0 then the pin will be set to low (for non-inverted mode, which is what we're using). In other words, no PWM. 
     // Likewise if s = MAX (whatever our TOP value is) then no PWM will be coming out the pin, it will simply be set to output high. 
+   if (ESC_Position == SIDEA)
+    {   //SIDEA - motor A
+        if (s < 0)
+        {   //Reverse
+            digitalWrite(OB_MC_DIR, LOW);   // The BD63573 only has one direction pin
+        }
+        else
+        {   //Forward
+            digitalWrite(OB_MC_DIR, HIGH);
+        }
+        // Now set the PWM, always a positive number
+        OB_MC_OCR = abs(s); // OB_MA_OCR is defined in OP_Settings.h
+    }
+    else if (ESC_Position == SIDEB)
+    {   //SIDEB - motor B
+        if (s < 0)
+        {   //Reverse
+            digitalWrite(OB_MD_DIR, LOW);
+        }
+        else
+        {   //Forward
+            digitalWrite(OB_MD_DIR, HIGH);
+        }
+        // Now set the PWM, always a positive number
+        OB_MD_OCR = abs(s); // OB_MB_OCR is defined in OP_Settings.h
+    }   
+}
+
+void Onboard_ESC::stop(void)
+{
+    if (ESC_Position == SIDEA)
+    {
+        OB_MC_OCR = 0;
+    }
+    else if (ESC_Position == SIDEB)
+    {
+        OB_MD_OCR = 0;
+    }
+}
+
+
+// ------------------------------------------------------------------------------------------------------------------>>
+// ONBOARD MOTOR CONTROLLERS C & D - HECLO SHIELD ONLY
+// ------------------------------------------------------------------------------------------------------------------>>
+void Onboard_ESC_CD::begin(void)
+{
+    // Code for onboard VNH5050 ICs, available only on the Heclo shield. 
+	
+    // Set the internal speed range (min, max, middle), this is defined by the TOP value for our PWM calculations, see OP_Settings.h 
+        set_InternalRange(-MOTOR_PWM_TOP, MOTOR_PWM_TOP, 0);
+        set_DefaultInternalRange(-MOTOR_PWM_TOP, MOTOR_PWM_TOP, 0);
+
+    // The onboard motor controller uses Timer5 for PWM. See OP_Settings.h for details. 
+
+    // CONTROL PINS
+        pinMode (OB_MA1,    OUTPUT); 
+        pinMode (OB_MA2,    OUTPUT); 
+        pinMode (OB_MA_PWM, OUTPUT); 
+        pinMode (OB_MB1,    OUTPUT); 
+        pinMode (OB_MB2,    OUTPUT); 
+        pinMode (OB_MB_PWM, OUTPUT); 
+
+    // PWM
+        if (ESC_Position == SIDEA)
+        {   // For safety's sake, set the output duty cycle to 0 before starting. This should also already have been done in SetupTimer5()
+            OB_MA_OCR = 0;          
+        }
+        if (ESC_Position == SIDEB)
+        {
+            OB_MB_OCR = 0;          
+        }
+}
+
+void Onboard_ESC_CD::setSpeed(int s)  
+{  
+    // save current speed
+    curspeed = s;
+
+    // make sure we are using the internal range
+    s = map_Range(s);
+    
+    // According to the L298 datasheet: 
+    // if s = 0, then the L298 doesn't care what the two input pins are, the motor is allowed to freewheel
+    // if s > 0, then the two input pins should be opposite values of each other (swap to go forward or reverse)
+    // if s > 0, and two input pins equal each other (either both high, or both low), then the motor is set to hard stop
+    // We are not utilizing this last feature, but could.
+    // Note that "s" here is speed but is actually a PWM duty cycle applied to the EN (enable) pin of the motor driver. 
+    // However according to the Atmega2560 datasheet (pg 156), the two extremes of the duty cycle setting are special cases:
+    // If s = 0 then the pin will be set to low (for non-inverted mode, which is what we're using). In other words, no PWM. 
+    // Likewise if s = MAX (whatever our TOP value is) then no PWM will be coming out the pin, it will simply be set to output high.     
     if (ESC_Position == SIDEA)
     {   //SIDEA - motor A
         if (s < 0)
@@ -379,8 +470,9 @@ void Onboard_ESC::setSpeed(int s)
     }   
 }
 
-void Onboard_ESC::stop(void)
+void Onboard_ESC_CD::stop(void)
 {
+    
     if (ESC_Position == SIDEA)
     {
         OB_MA_OCR = 0;
