@@ -53,8 +53,18 @@ int16_t             OP_Driver::Forward_FullStopCmd;
 // Turning
 uint8_t             OP_Driver::TurnMode;
 boolean             OP_Driver::NeutralTurnAllowed;  
+boolean             OP_Driver::SetPID = true;   // Sets the PID parameters (namely polling rate) when it run the first time 
 
 
+//PID variables
+double OP_Driver::setpoint, OP_Driver::feedback, OP_Driver::output; 
+//double setpoint, feedback, output;
+static float OP_Driver::engine_watts;
+float OP_Driver::GetEngineWatts;
+//unsigned long lastStatus = millis();
+
+// PID initialization with the k values kP 0,5 kI 5 and kD 0,001, proportional on error, DIRECT as opposed to REVERSED
+PID EnginePowerPID(&OP_Driver::feedback, &OP_Driver::output, &OP_Driver::setpoint, 0.5, 5, 0.001, P_ON_E, DIRECT);
 
 // Little function to help us print out actual drive type names, rather than numbers. 
 // To use, call something like this:  Serial.print(printDriveType(my_drive_type));
@@ -286,7 +296,7 @@ void OP_Driver::OCR3A_ISR()
 
 // Hopefully the community will develop some interesting presets within this framework.  
 
-int OP_Driver::GetDriveSpeed(int DriveCMD, int LastDriveSpeed, _driveModes DriveMode, boolean Brake)    // This function returns a DriveSpeed output, adjusted for accel/decel constraints
+int OP_Driver::GetDriveSpeed(int DriveCMD, int LastDriveSpeed, _driveModes DriveMode, boolean Brake, int ForwardSpeed_Max , int ReverseSpeed_Max)    // This function returns a DriveSpeed output, adjusted for accel/decel constraints
 {
 int8_t t_DriveSkipNum = 0;              // Temporary number of skips to reach before incrementing our speed. Initialize to zero, but it will be set to something else below.
 int8_t t_DriveRampStep = 0;             // Temporary DriveRampStep value
@@ -306,6 +316,11 @@ boolean SimpleTrackRecoil = true;		// In January 2020 we added a different track
     // Note that track recoil assumes negative movement, so we check that here as well. 
     if (DriveMode == REVERSE || DriveMode == TRACK_RECOIL || (DriveMode == NEUTRALTURN && DriveCMD < 0)) neg = true;
     else neg = false;
+
+    // This is where the DriveCMD gets intercepted so that the engine wattage can be regulated 
+    if (DriveMode != NEUTRALTURN){
+        DriveCMD = MotorPowerPid(DriveCMD, ForwardSpeed_Max ,ReverseSpeed_Max);
+    }
     // Now convert to absolute
     DriveCMD = abs(DriveCMD);
     LastDriveSpeed = abs(LastDriveSpeed);
@@ -600,6 +615,131 @@ boolean SimpleTrackRecoil = true;		// In January 2020 we added a different track
     return t_DriveSpeed;
 }
 
+// ------------------------------------------------------------------------------------------------------------------------------------------>>
+
+// Like the arduino map function but instead able to genrate a logarithmic curve from the provided values
+float OP_Driver::FmultiMap(float val, float * _in, float * _out, uint8_t size)
+{
+  // take care the value is within range
+  // val = constrain(val, _in[0], _in[size-1]);
+  if (val <= _in[0]) return _out[0];
+  if (val >= _in[size - 1]) return _out[size - 1];
+
+  // search right interval
+  uint8_t pos = 1;  // _in[0] allready tested
+  while (val > _in[pos]) pos++;
+
+  // this will handle all exact "points" in the _in array
+  if (val == _in[pos]) return _out[pos];
+
+  // interpolate in the right segment for the rest
+  return (val - _in[pos - 1]) * (_out[pos] - _out[pos - 1]) / (_in[pos] - _in[pos - 1]) + _out[pos - 1];
+}
+
+// ------------------------------------------------------------------------------------------------------------------------------------------>>
+
+
+// The PID regulation loop. 
+// DriveCMD is used as the setpoint: desiredWatt.
+// The current wattage is calculated from the motor current and voltage measurement and the function returns an adjusted DriveCMD after the PID calculation
+int OP_Driver::MotorPowerPid(int desiredWatt, int ForwardSpeed_Max , int ReverseSpeed_Max) {
+    uint8_t absReverseSpeed_Max = abs(ReverseSpeed_Max);
+    if(SetPID){
+        EnginePowerPID.SetSampleTime(2); // 2ms polling rate
+        //EnginePowerPID.SetSumMinMax(0, ForwardSpeed_Max);
+        //EnginePowerPID.SetOutputLimits(1, ForwardSpeed_Max); 
+        SetPID = false;
+    }
+
+   
+  if (EnginePowerPID.GetMode() == MANUAL) { // If the PID is off it is then turned on here
+    EnginePowerPID.SetMode(AUTOMATIC);
+  }
+  // The max sum and output of the PID is set acording to the maximum speed set by the user in OP Config
+  if(desiredWatt > 0){
+    EnginePowerPID.SetSumMinMax(0, ForwardSpeed_Max);   
+    EnginePowerPID.SetOutputLimits(1, ForwardSpeed_Max); 
+  }
+  else{
+    EnginePowerPID.SetSumMinMax(0, absReverseSpeed_Max);
+    EnginePowerPID.SetOutputLimits(1, absReverseSpeed_Max);   
+  }
+  uint16_t unFilteredAmpReading;
+  uint16_t unFilteredVoltReading;
+  static bool firstPass = true;
+  const float alpha = 0.8;
+  static float filteredAmpReading;
+  static float filteredVoltReading;
+  float engine_amps = 0;
+  float engine_volts = 0;
+  //for (uint8_t i = 0; i <= 5; i++) {      
+  unFilteredAmpReading = analogRead(OB_TOTAL_CURRENT_SENSE);
+   //Serial.print(" engine_amps ");
+  //Serial.println(unFilteredAmpReading);
+  unFilteredVoltReading = analogRead(A15);
+  // I borrowed this smart alpha filter from the LVC code
+    if (firstPass) { filteredAmpReading = unFilteredAmpReading; filteredVoltReading = unFilteredVoltReading; firstPass = false; }
+    filteredAmpReading = alpha * filteredAmpReading + (1.0 - alpha) * unFilteredAmpReading;
+    filteredVoltReading = alpha * filteredVoltReading + (1.0 - alpha) * unFilteredVoltReading;
+  //}
+  engine_amps = filteredAmpReading * 0.047;  //converts reading to whole amps
+  engine_volts = filteredVoltReading * 0.01525;//0.01419; converts reading to whole volts 
+  engine_watts = engine_amps * engine_volts;
+  GetEngineWatts = engine_watts;    // Return the latest watt reading to the telemetry
+
+  uint8_t desiredEngineOutput = abs(desiredWatt); 
+  uint8_t speedLimit;
+  if(desiredWatt > 0){
+    speedLimit = ForwardSpeed_Max;
+  }
+  else{
+    speedLimit = absReverseSpeed_Max;
+  }
+//Serial.println(desiredEngineOutput);
+  
+  //    Takes the current speed limit and distributes it to 5 channels, each one half of the former, example: 0,32,64,127,255
+  float log_speed_curve_in[] = {0, speedLimit >> 3, speedLimit >> 2, speedLimit >> 1, speedLimit}; 
+    
+  //    The desired wattage for each of the 5 points on the logarithmic curve 
+  float log_speed_curve_out[] = {0.0, 1.8,8.0/* 10.0*/,25.0/* 30.0*/, 120.0/*180.0*/};  
+  setpoint = FmultiMap(desiredEngineOutput, log_speed_curve_in, log_speed_curve_out, 5);
+  feedback = engine_watts;
+
+  EnginePowerPID.Compute(); //  The PID calculation is carried out if the 2ms polling timer allows it 
+
+/*Serial.print("sending this ");
+Serial.print("desiredWatt ");
+  Serial.print(desiredWatt);
+  Serial.print(" output ");
+  Serial.print(output);
+  Serial.print(" statusVoltage ");
+  Serial.print(engine_volts);
+  Serial.print(" engine_amps ");
+  Serial.print(engine_amps);
+  Serial.print(" statusWatt ");
+  Serial.print(engine_watts);
+  Serial.println("");*/
+
+  if (desiredEngineOutput > 0) {
+    return  output;
+  }
+  /*else if (desiredWatt < 0) {
+    return -1 *  output;
+  }*/
+  else {
+      // If the desiredEngineOutput is 0 the PID is turned off and variables reset, so that it startes from fresh next time it is run
+    if (EnginePowerPID.GetMode() == AUTOMATIC) {
+      EnginePowerPID.SetMode(MANUAL);
+      output = 0.0;
+      setpoint = 0.0;
+    }
+    return output;
+  }
+}   
+
+
+// ------------------------------------------------------------------------------------------------------------------------------------------>>
+
 // GetThrottleSpeed - this one is similar to GetDriveSpeed, except now we are setting our "virtual" engine throttle speed, not the tank's actual movement speed. 
 // Throttle speed does *NOT* go to the drive motors - it will be used instead to set the speed of the mechanical smoker, and most importantly, the sound unit. 
 // By divorcing the "engine" speed from actual drive speed, we can do simple things like rev the engine without moving the tank, or play a special sound on high acceleration, or 
@@ -634,7 +774,7 @@ int OP_Driver::GetThrottleSpeed(int ThrottleCMD, int LastThrottleSpeed, int Driv
 
     // BRAKING or DECELERATING
     // =============================================================================================================================================================>>
-    if (Brake == true || ThrottleCMD < LastThrottleSpeed)
+  /*  if (Brake == true || ThrottleCMD < LastThrottleSpeed)
     {   // We want to decelerate
 
         (DriveMode == FORWARD) ? FullStopCmd = Forward_FullStopCmd : FullStopCmd = Reverse_FullStopCmd;
@@ -736,7 +876,7 @@ int OP_Driver::GetThrottleSpeed(int ThrottleCMD, int LastThrottleSpeed, int Driv
             t_ThrottleSpeed = constrain(t_ThrottleSpeed, ThrottleCMD, MOTOR_MAX_FWDSPEED); // (we already turned ThrottleCMD into abs() at the start, so this works for forward or reverse deceleration)
         }
     }
-
+*/
     return t_ThrottleSpeed;
 }
 

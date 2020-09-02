@@ -22,6 +22,7 @@
 #define OP_DRIVER_H
 
 #include <Arduino.h>
+#include "../PID/PID_v1.h"     //Arduino PID library, modified
 #include "../OP_Settings/OP_Settings.h"
 #include "../OP_Motors/OP_Motors.h"
                                                    
@@ -111,11 +112,14 @@ public:
     static uint8_t getTurnMode();
     static void setNeutralTurnAllowed(boolean);
     static boolean getNeutralTurnAllowed(void);
-    int GetDriveSpeed(int, int, _driveModes, boolean);      // What is the *drive* speed. This is used to control the tank movement. 
+    int GetDriveSpeed(int, int, _driveModes, boolean, int, int);      // What is the *drive* speed. This is used to control the tank movement. // two integers added for max forward/reverse speed
     int GetThrottleSpeed(int, int, int, _driveModes, boolean); // What is the *engine* speed (different from drive speed) - this is used for the sound and smoker outputs
     int ScaleTurnCommand(int, int);                         // This scales a turn command to some lesser amount, used for neutral turns (tank mode) and turn command applied to rear treads in halftrack mode.
     void MixSteering(int, int, int*, int*);                 // This mixes throttle and turn commands into speeds for the left and right treads
                                                             // (int DriveSpeed, int TurnAmount, int *RightSpeed, int *LeftSpeed)
+    static float GetEngineWatts;   // Variable the telemetry status calls
+
+    static double setpoint, feedback, output; // Variables for the PID 
 
 protected:  
     // Interrupts
@@ -125,6 +129,12 @@ protected:
 
     // Driving 
     static uint8_t DriveType;                   // Tank, halftrack, car
+    
+    //PID related
+    static int MotorPowerPid(int, int, int);    
+    static bool SetPID; 
+    static float engine_watts;
+    static float FmultiMap(float,float*,float*,uint8_t);
     
     // Track recoil
     static uint8_t KickbackSpeed;               // Track recoil initial kick-back speed
