@@ -381,40 +381,44 @@
 
 
 // ------------------------------------------------------------------------------------------------------------------------------------------------------->>
-// MOTOR DRIVERS - ONBOARD  (OB for "OnBoard")
-// ------------------------------------------------------------------------------------------------------------------------------------------------------->>
-    // These are defines for the onboard VNH5050 motor driver chips and the smoker MOSFET.
-    // The VNH5050 is driven with 3 pins, two each directional pins and one PWM for each motor. The smoker MOSFET is uni-directional so only needs PWM.
-    // Motor A
-    #define OB_MA1                      A1//47  // This is the Arduino pin for MotorA, direction pin 1 (Atmega pin 23, PortB4)
-    #define OB_MA2                      A2//49   // This is the Arduino pin for MotorA, direction pin 2 (Atmega pin 15, PortH3)
-    #define OB_MA_PWM                   6//45  // This is the Arduino pin for MotorA PWM (Atmega pin 39, PortL4)
-    #define OB_MA_OCR                OCR4A//OCR5B  // The output compare register associated with this pin
-    // Motor B
-    #define OB_MB1                      A3//50  // This is the Arduino pin for MotorB, direction pin 1 (Atmega pin 26, PortB7)
-    #define OB_MB2                      A4//48  // This is the Arduino pin for MotorB, direction pin 2 (Atmega pin 24, PortB5)
-    #define OB_MB_PWM                   7//46  // This is the Arduino pin for MotorB PWM (Atmega pin 38, PortL3)
-    #define OB_MB_OCR                OCR4B//OCR5A  // The output compare register associated with this pin
-    // Heng Long Smoker (we will call it SIDEA, there is only one)
-    #define OB_SMOKER_PWM               8  // This is the Arduino pin for the smoker mosfet PWM pin (Atmega pin 25, PortB6)
-    #define OB_SMOKER_OCR            OCR4C  // The output compare register associated with this pin
-    #define OB_TOTAL_CURRENT_SENSE      A7
-
-// ------------------------------------------------------------------------------------------------------------------------------------------------------->>
-// MOTOR DRIVERS - ONBOARD TURRET (OB for "OnBoard")
+// MOTOR DRIVERS - ONBOARD TURRET (OB for "OnBoard") - On the original TCB we used an L298, Heclo uses BD63573. These are referred to as Motors A & B
+// 													   to maintain compatibility with OP Config.
 // ------------------------------------------------------------------------------------------------------------------------------------------------------->>
     // These are defines for the onboard BD63573  motor driver chips.
     // The BD63573 is driven with 2 pins, one directional pin and one PWM for each motor. 
+    // Motor A
+    #define OB_MA_DIR                   48  	// This is the Arduino pin for MotorA, direction pin 1 (Atmega pin 23, PortB4)
+    #define OB_MA_PWM                   46  	// This is the Arduino pin for MotorA PWM (Atmega pin 39, PortL4)
+    #define OB_MA_OCR                OCR5A  	// The output compare register associated with this pin
+    // Motor B
+    #define OB_MB_DIR                   47  	// This is the Arduino pin for MotorB, direction pin 1 (Atmega pin 26, PortB7)
+    #define OB_MB_PWM                   45  	// This is the Arduino pin for MotorB PWM (Atmega pin 38, PortL3)
+    #define OB_MB_OCR                OCR5B  	// The output compare register associated with this pin
+
+
+// ------------------------------------------------------------------------------------------------------------------------------------------------------->>
+// MOTOR DRIVERS - ONBOARD  (OB for "OnBoard") - These are new motor drivers not present on the original TCB. These are referred to as Motors C & D
+//												 and on the Heclo shield are suitable for main drive (up to 30 amps output each)
+// ------------------------------------------------------------------------------------------------------------------------------------------------------->>
+    // These are defines for the onboard VNH5050 motor driver chips and the smoker MOSFET.
+    // The VNH5050 is driven with 3 pins, two each directional pins and one PWM for each motor. The smoker MOSFET is uni-directional so only needs PWM.
     // Motor C
-    #define OB_MC_DIR                      48  // This is the Arduino pin for MotorA, direction pin 1 (Atmega pin 23, PortB4)
-    //#define OB_MC2                      50  // This is the Arduino pin for MotorA, direction pin 2 (Atmega pin 15, PortH3)
-    #define OB_MC_PWM                   46  // This is the Arduino pin for MotorA PWM (Atmega pin 39, PortL4)
-    #define OB_MC_OCR                OCR5A  // The output compare register associated with this pin
+    #define OB_MC1                      A1		// This is the Arduino pin for MotorC, direction pin 1 (Atmega pin 23, PortB4)
+    #define OB_MC2                      A2		// This is the Arduino pin for MotorC, direction pin 2 (Atmega pin 15, PortH3)
+    #define OB_MC_PWM                    6		// This is the Arduino pin for MotorC PWM (Atmega pin 39, PortL4)
+    #define OB_MC_OCR                OCR4A		// The output compare register associated with this pin
     // Motor D
-    #define OB_MD_DIR                     47  // This is the Arduino pin for MotorB, direction pin 1 (Atmega pin 26, PortB7)
-    //#define OB_MD2                      49  // This is the Arduino pin for MotorB, direction pin 2 (Atmega pin 24, PortB5)
-    #define OB_MD_PWM                   45  // This is the Arduino pin for MotorB PWM (Atmega pin 38, PortL3)
-    #define OB_MD_OCR                OCR5B  // The output compare register associated with this pin
+    #define OB_MD1                      A3		// This is the Arduino pin for MotorD, direction pin 1 (Atmega pin 26, PortB7)
+    #define OB_MD2                      A4		// This is the Arduino pin for MotorD, direction pin 2 (Atmega pin 24, PortB5)
+    #define OB_MD_PWM                    7		// This is the Arduino pin for MotorD PWM (Atmega pin 38, PortL3)
+    #define OB_MD_OCR                OCR4B		// The output compare register associated with this pin
+    // Current sense pin for the onboard VNH5050 chips
+	#define OB_TOTAL_CURRENT_SENSE      A7
+	
+    // Heng Long Smoker (we will call it SIDEA, there is only one)
+    #define OB_SMOKER_PWM                8 		// This is the Arduino pin for the smoker mosfet PWM pin (Atmega pin 25, PortB6)
+    #define OB_SMOKER_OCR            OCR4C  	// The output compare register associated with this pin
+
           
 
 // ------------------------------------------------------------------------------------------------------------------------------------------------------->>
@@ -445,16 +449,16 @@
         #define pin_Button               A14      // Input    - Input pushbutton (ATmega K6)
 
     // Board LEDs
-        #define pin_RedLED               34//A3       // Output   - Red   LED on board (ATmega F3)
-        #define pin_GreenLED             35//A4       // Output   - Green LED on board (ATmega F4)
+        #define pin_RedLED               34       // Output   - Red   LED on board (ATmega F3)
+        #define pin_GreenLED             35       // Output   - Green LED on board (ATmega F4)
 
     // Transistorized Light outputs
         #define pin_Light1               53       // Output   - Light #1 output (headlights) (ATmega B0)
         #define pin_Light2               5        // Output   - Light #2 output (ATmega E3)
         #define pin_Brakelights          4        // Output   - Brake light output. PWM capable. (ATmega G5)
-        #define pin_AuxOutput            13//8        // Output   - Aux output. PWM capable. Has a flyback diode installed, this special output can drive a relay directly, or even a small motor (ATmega H5)
+        #define pin_AuxOutput            13       // Output   - Aux output. PWM capable. Has a flyback diode installed, this special output can drive a relay directly, or even a small motor (ATmega H5)
         #define pin_MuzzleFlash          41       // Output   - Trigger output for Taigen High Intensity muzzle flash unit (ATmega G0)
-        #define pin_HitNotifyLEDs        11//7        // Output   - Hit notification LEDs if using the Tamiya apple. PWM capable (ATmega H4)
+        #define pin_HitNotifyLEDs        11       // Output   - Hit notification LEDs if using the Tamiya apple. PWM capable (ATmega H4)
 
 #ifdef TCB_DIY
         //Machine Gun light output - DIY version. For compatibility with the regular TCB code, we specify it the long way
