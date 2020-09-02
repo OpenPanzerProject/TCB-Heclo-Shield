@@ -17,19 +17,18 @@
 // OPEN PANZER TANK CONTROL BOARD (TCB) - FIRMWARE VERSION NUMBER
 // ------------------------------------------------------------------------------------------------------------------------------------------------------->>
     // This is the firmware version that will be returned to the desktop application when it checks. It will be split into three, two-digit numbers
-    #define FIRMWARE_VERSION        "0.93.68"      // version. Last update 1/26/2020
+    #define FIRMWARE_VERSION        "0.93.70"      // version. Last update 9/2/2020
     
-    #define MIN_OPCONFIG_VERSION    "0.93.68"      // Minimum version of OP Config this version of firmware requires
+    #define MIN_OPCONFIG_VERSION    "0.93.70"      // Minimum version of OP Config this version of firmware requires
 
 
 // ------------------------------------------------------------------------------------------------------------------------------------------------------->>
 // DIY VERSION
 // ------------------------------------------------------------------------------------------------------------------------------------------------------->>
     // Un-comment the line below if you are using this firmware on a standard Arduino MEGA as a DIY project. 
-	// NOTE: BY DEFINITION THE HECLO SHIELD IS A DIY VERSION - SO ALWAYS LEAVE THIS UNCOMMENTED
-    
+
     // - - - - - - - - - - 
-    #define TCB_DIY    
+    #define TCB_DIY    			    // NOTE: BY DEFINITION THE HECLO SHIELD IS A DIY VERSION - SO ALWAYS LEAVE THIS UNCOMMENTED
     // - - - - - - - - - - 
     
     // Explanation: There are two pins on the standard TCB that are not connected on the Arduino MEGA. When we define "TCB_DIY" these two pins are changed 
