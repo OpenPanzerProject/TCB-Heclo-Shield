@@ -101,7 +101,7 @@ static boolean firstPass = true;
 
 // The voltage we measure on the pin isn't the actual outside voltage of the battery, it is the battery voltage divided by some number
 //multiplier = (4.7 + 10) / 4.7 = 3.1277
-const float multiplier = 3.1277;    // Multiply this by our measured voltage and we will have battery voltage
+const float multiplier = 0.01525;   //0.01419;//3.15;    // Multiply this by our measured voltage and we will have battery voltage // changed to multiplication for faster calculation (slightly)
 
 // But wait! Our input polarity protection diode also drops at least 0.3 volts, and up to 0.5 volts at 5A draw (max 0.7 volts but we shouldn't be running that much current through it). 
 // (These are specs for the Vishay V12P10-M3/86A)
@@ -115,14 +115,14 @@ const float alpha = 0.9;
     // Ok, here we go: first take an analog reading (will give us a number between 0-1023)
         voltSense = analogRead(pin_BattVoltage);
     //Convert the reading to actual voltage read (0 - 5 Vdc)
-        unFilteredVoltage = (voltSense / 1024.0) * 5.0;
+        unFilteredVoltage = voltSense;//(voltSense / 1024.0) * 5.0; // see comment about multiplier
     // Now run it through low-pass filter
         if (firstPass) { filteredVoltage = unFilteredVoltage; firstPass = false; }
         filteredVoltage = alpha * filteredVoltage + (1.0 - alpha) * unFilteredVoltage;
     // Now convert the measured voltage to the external battery voltage by accounting for our voltage divider
         Voltage = filteredVoltage * multiplier;
     // Now also add our adjustment factor to account for the voltage drop on the input polarity diode
-        Voltage += vAdj;
+        //Voltage += vAdj;  // Not present in Heclo design
 
     // In testing this results in a pretty accurate reading
     // Takes about 700 microSeconds (0.7 mS = 0.0007 seconds)
@@ -131,5 +131,3 @@ const float alpha = 0.9;
 
     return Voltage;
 }
-
-
