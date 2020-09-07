@@ -989,7 +989,7 @@ if (Startup)
                 }
     
                 // Ok, DriveSpeed finally - GetDriveSpeed() primarily applies any acceleration/deceleration constraints. Remember, DriveSpeed is the speed of the vehicle.
-                DriveSpeed = Driver.GetDriveSpeed(DriveSpeed, DriveSpeed_Previous, DriveModeActual, Braking, ForwardSpeed_Max, ReverseSpeed_Max, eeprom.ramcopy.DriveMotors);
+                DriveSpeed = Driver.GetDriveSpeed(DriveSpeed, DriveSpeed_Previous, DriveModeActual, Braking, ForwardSpeed_Max, ReverseSpeed_Max);
     
                 // In this case the recoil is over, return DriveModeActual to STOP
                 if (DriveModeActual == TRACK_RECOIL && DriveSpeed == 0)
@@ -1003,7 +1003,7 @@ if (Startup)
             {   // This is a neutral turn
                 DriveSpeed = 0; // Neutral turns ignore drive speed
                 // If enabled, we apply acceleration ramping to TurnSpeed (speed of neutral turn). Deceleration ramping will automatically be ignored for neutral turns, even if enabled (it looks silly)
-                TurnSpeed = Driver.GetDriveSpeed(TurnSpeed, TurnSpeed_Previous, DriveModeActual, Braking, ForwardSpeed_Max, ReverseSpeed_Max, eeprom.ramcopy.DriveMotors);
+                TurnSpeed = Driver.GetDriveSpeed(TurnSpeed, TurnSpeed_Previous, DriveModeActual, Braking, ForwardSpeed_Max, ReverseSpeed_Max);
             }
         }
         else
@@ -1030,7 +1030,7 @@ if (Startup)
         // This lets us activate an acceleration sound effect, let the throttle decrease slowly (so engine sound doesn't go directly to idle from full speed), etc... 
         if (DriveModeActual==NEUTRALTURN)
         {   // In this case, there is no drive speed, instead we pass the turn command (which is actually our drive speed in a neutral turn)
-            ThrottleSpeed = Driver.GetThrottleSpeed(TurnCommand, ThrottleSpeed_Previous, TurnCommand, DriveModeActual, Braking, eeprom.ramcopy.DriveMotors); 
+            ThrottleSpeed = Driver.GetThrottleSpeed(TurnCommand, ThrottleSpeed_Previous, TurnCommand, DriveModeActual, Braking); 
         }
         else
         {   
@@ -1043,7 +1043,7 @@ if (Startup)
             if (TransmissionEngaged && DriveSpeed == 0) { ThrottleCommand = 0; }
 
             // Now we calculate a throttle speed based on the command and other parameters
-            ThrottleSpeed = Driver.GetThrottleSpeed(ThrottleCommand, ThrottleSpeed_Previous, DriveSpeed, DriveModeActual, Braking, eeprom.ramcopy.DriveMotors); 
+            ThrottleSpeed = Driver.GetThrottleSpeed(ThrottleCommand, ThrottleSpeed_Previous, DriveSpeed, DriveModeActual, Braking); 
         }
 
         // Now pass the throttle speed to the sound unit and the smoker 

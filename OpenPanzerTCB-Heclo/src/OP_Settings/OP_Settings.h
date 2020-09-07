@@ -411,7 +411,7 @@
     #define OB_MD2                      A4		// This is the Arduino pin for MotorD, direction pin 2 (Atmega pin 24, PortB5)
     #define OB_MD_PWM                    7		// This is the Arduino pin for MotorD PWM (Atmega pin 38, PortL3)
     #define OB_MD_OCR                OCR4B		// The output compare register associated with this pin
-    // Current sense pin for the onboard VNH5050 chips
+    // Current sense pin
 	#define OB_TOTAL_CURRENT_SENSE      A7
 	
     // Heng Long Smoker (we will call it SIDEA, there is only one)

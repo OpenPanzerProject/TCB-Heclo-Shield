@@ -296,7 +296,7 @@ void OP_Driver::OCR3A_ISR()
 
 // Hopefully the community will develop some interesting presets within this framework.  
 
-int OP_Driver::GetDriveSpeed(int DriveCMD, int LastDriveSpeed, _driveModes DriveMode, boolean Brake, int ForwardSpeed_Max , int ReverseSpeed_Max, Drive_t driveType)    // This function returns a DriveSpeed output, adjusted for accel/decel constraints
+int OP_Driver::GetDriveSpeed(int DriveCMD, int LastDriveSpeed, _driveModes DriveMode, boolean Brake, int ForwardSpeed_Max , int ReverseSpeed_Max)    // This function returns a DriveSpeed output, adjusted for accel/decel constraints
 {
 int8_t t_DriveSkipNum = 0;              // Temporary number of skips to reach before incrementing our speed. Initialize to zero, but it will be set to something else below.
 int8_t t_DriveRampStep = 0;             // Temporary DriveRampStep value
@@ -318,9 +318,9 @@ boolean SimpleTrackRecoil = true;		// In January 2020 we added a different track
     else neg = false;
 
     
-    if (driveType == ONBOARD_CD && DriveMode != NEUTRALTURN)
+    if (DriveMode != NEUTRALTURN)
 	{
-		// This is where the DriveCMD gets intercepted so that the engine wattage can be regulated, but only with onboard motor drivers C & D
+		// This is where the DriveCMD gets intercepted so that the engine wattage can be regulated
 		DriveCMD = MotorPowerPid(DriveCMD, ForwardSpeed_Max ,ReverseSpeed_Max);
     }
 	
@@ -753,7 +753,7 @@ Serial.print("desiredWatt ");
 // instead of ramped. 
 
 // For now, all we do here is try to prevent the throttle sound from stopping suddenly. 
-int OP_Driver::GetThrottleSpeed(int ThrottleCMD, int LastThrottleSpeed, int DriveSpeed, _driveModes DriveMode, boolean Brake, Drive_t driveType)
+int OP_Driver::GetThrottleSpeed(int ThrottleCMD, int LastThrottleSpeed, int DriveSpeed, _driveModes DriveMode, boolean Brake)
 {
     int8_t t_ThrottleSkipNum = 0;           // Temporary number of interrupts to skip before incrementing throttle speed. Initialize to zero, but it needs to be set to something else below (if ramping is used). 
     int8_t t_ThrottleRampStep = 0;          // Temporary ThrottleRampStep value
@@ -774,8 +774,9 @@ int OP_Driver::GetThrottleSpeed(int ThrottleCMD, int LastThrottleSpeed, int Driv
 
     // Now, calculate actual throttle speed: 
 
-	if (driveType != ONBOARD_CD)	// Throttle speed adjustments are ignored with the onboard motor drivers C & D
-	{
+
+	// NONE OF THIS IS USED UNDER THE HECLO WATTAGE MEASUREMENT SCHEME
+	/*
 		// BRAKING or DECELERATING
 		// =============================================================================================================================================================>>
 		if (Brake == true || ThrottleCMD < LastThrottleSpeed)
@@ -880,7 +881,8 @@ int OP_Driver::GetThrottleSpeed(int ThrottleCMD, int LastThrottleSpeed, int Driv
 				t_ThrottleSpeed = constrain(t_ThrottleSpeed, ThrottleCMD, MOTOR_MAX_FWDSPEED); // (we already turned ThrottleCMD into abs() at the start, so this works for forward or reverse deceleration)
 			}
 		}
-	}
+	*/
+
     return t_ThrottleSpeed;
 }
 
